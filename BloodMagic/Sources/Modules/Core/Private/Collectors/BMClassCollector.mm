@@ -42,13 +42,31 @@
 {
 #ifdef __IPHONE_OS_VERSION_MIN_REQUIRED
     uint classesCount;
-    const char *imageName = class_getImageName(object_getClass(self));
-    const char **classNames = objc_copyClassNamesForImage(imageName, &classesCount);
-    for (uint index = 0; index < classesCount; index++) {
-        Class nextClass = objc_getClass(classNames[index]);
-        _cachedClasses.push_back(nextClass);
+
+    uint imagesCount;
+    const char **imagesNames = objc_copyImageNames(&imagesCount);
+    Class nsobjectClass = NSClassFromString(@"NSObject");
+    for (uint imageIndex = 0; imageIndex < imagesCount; imageIndex++) {
+        const char* imageName = imagesNames[imageIndex];
+        const char **classNames = objc_copyClassNamesForImage(imageName, &classesCount);
+        for (uint classIndex = 0; classIndex < classesCount; classIndex++) {
+            Class nextClass = objc_getClass(classNames[classIndex]);
+
+            Class superClass = nextClass;
+            do
+            {
+                superClass = class_getSuperclass(superClass);
+            } while(superClass && superClass != nsobjectClass);
+
+            if (superClass == nil)
+            {
+                continue;
+            }
+            _cachedClasses.push_back(nextClass);
+        }
+        free(classNames);
     }
-    free(classNames);
+    free(imagesNames);
 #else
     Class parentClass = [NSObject class];
     int numClasses = objc_getClassList(NULL, 0);
